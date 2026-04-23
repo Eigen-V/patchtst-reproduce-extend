@@ -1,0 +1,160 @@
+{
+  "timestamp": "2026-04-23 18:10:27",
+  "note": "The 14 runs were executed in two batches. ETTh1 rows are the first batch (finished 2026-04-22) and their full per-epoch traces live in scripts/traces/. Traffic / Air / FX rows are the second batch (finished 2026-04-23); their scripts/traces/<name>_trace.json files carry only the run_name / config / summary blocks transcribed verbatim from the originals (per_epoch is an empty array for those runs), and the aggregate numbers in this file come from the second batch's own aggregate output.",
+  "results": [
+    {
+      "name": "acca_attn_pre_learned_ETTh1",
+      "dataset": "ETTh1",
+      "returncode": 0,
+      "test_mse": "0.3809",
+      "test_mae": "0.4029",
+      "best_epoch": "47",
+      "total_training_time": "2341.2766",
+      "final_alpha_raw": "-4.5675",
+      "final_alpha_effective": "0.0103"
+    },
+    {
+      "name": "acca_attn_post_learned_ETTh1",
+      "dataset": "ETTh1",
+      "returncode": 0,
+      "test_mse": "0.3812",
+      "test_mae": "0.4031",
+      "best_epoch": "46",
+      "total_training_time": "2040.2539",
+      "final_alpha_raw": "-4.5779",
+      "final_alpha_effective": "0.0102"
+    },
+    {
+      "name": "acca_lin_post_learned_ETTh1",
+      "dataset": "ETTh1",
+      "returncode": 0,
+      "test_mse": "0.3813",
+      "test_mae": "0.4030",
+      "best_epoch": "36",
+      "total_training_time": "2368.8130",
+      "final_alpha_raw": "-4.5674",
+      "final_alpha_effective": "0.0103"
+    },
+    {
+      "name": "acca_atte_pre_fixedone_ETTh1",
+      "dataset": "ETTh1",
+      "returncode": 0,
+      "test_mse": "0.3977",
+      "test_mae": "0.4106",
+      "best_epoch": "47",
+      "total_training_time": "6317.5505",
+      "final_alpha_raw": "inf",
+      "final_alpha_effective": "1.0000"
+    },
+    {
+      "name": "acca_line_pre_fixedone_ETTh1",
+      "dataset": "ETTh1",
+      "returncode": 0,
+      "test_mse": "0.5846",
+      "test_mae": "0.5219",
+      "best_epoch": "52",
+      "total_training_time": "5670.0432",
+      "final_alpha_raw": "inf",
+      "final_alpha_effective": "1.0000"
+    },
+    {
+      "name": "acca_attn_pre_learned_traffic",
+      "dataset": "traffic",
+      "returncode": 0,
+      "test_mse": "0.5431",
+      "test_mae": "0.4666",
+      "best_epoch": "45",
+      "total_training_time": "7799.2484",
+      "final_alpha_raw": "-4.4324",
+      "final_alpha_effective": "0.0117"
+    },
+    {
+      "name": "acca_attn_pre_learned_air",
+      "dataset": "air",
+      "returncode": 0,
+      "test_mse": "0.2444",
+      "test_mae": "0.2307",
+      "best_epoch": "39",
+      "total_training_time": "1612.2697",
+      "final_alpha_raw": "-4.4215",
+      "final_alpha_effective": "0.0119"
+    },
+    {
+      "name": "acca_attn_pre_learned_fx",
+      "dataset": "fx",
+      "returncode": 0,
+      "test_mse": "0.0957",
+      "test_mae": "0.1928",
+      "best_epoch": "86",
+      "total_training_time": "1568.5006",
+      "final_alpha_raw": "-4.6116",
+      "final_alpha_effective": "0.0098"
+    },
+    {
+      "name": "acca_attn_post_learned_traffic",
+      "dataset": "traffic",
+      "returncode": 0,
+      "test_mse": "0.5425",
+      "test_mae": "0.4612",
+      "best_epoch": "49",
+      "total_training_time": "2276.2533",
+      "final_alpha_raw": "-4.3146",
+      "final_alpha_effective": "0.0132"
+    },
+    {
+      "name": "acca_attn_post_learned_air",
+      "dataset": "air",
+      "returncode": 0,
+      "test_mse": "0.2458",
+      "test_mae": "0.2329",
+      "best_epoch": "54",
+      "total_training_time": "1675.9078",
+      "final_alpha_raw": "-4.5347",
+      "final_alpha_effective": "0.0106"
+    },
+    {
+      "name": "acca_attn_post_learned_fx",
+      "dataset": "fx",
+      "returncode": 0,
+      "test_mse": "0.0958",
+      "test_mae": "0.1930",
+      "best_epoch": "69",
+      "total_training_time": "846.5207",
+      "final_alpha_raw": "-4.6134",
+      "final_alpha_effective": "0.0098"
+    },
+    {
+      "name": "acca_lin_post_learned_fx",
+      "dataset": "fx",
+      "returncode": 0,
+      "test_mse": "0.0962",
+      "test_mae": "0.1933",
+      "best_epoch": "83",
+      "total_training_time": "981.2979",
+      "final_alpha_raw": "-4.5886",
+      "final_alpha_effective": "0.0101"
+    },
+    {
+      "name": "acca_atte_pre_fixedone_fx",
+      "dataset": "fx",
+      "returncode": 0,
+      "test_mse": "0.1183",
+      "test_mae": "0.2211",
+      "best_epoch": "73",
+      "total_training_time": "1352.0344",
+      "final_alpha_raw": "inf",
+      "final_alpha_effective": "1.0000"
+    },
+    {
+      "name": "acca_line_pre_fixedone_fx",
+      "dataset": "fx",
+      "returncode": 0,
+      "test_mse": "0.3059",
+      "test_mae": "0.3673",
+      "best_epoch": "67",
+      "total_training_time": "839.4074",
+      "final_alpha_raw": "inf",
+      "final_alpha_effective": "1.0000"
+    }
+  ]
+}

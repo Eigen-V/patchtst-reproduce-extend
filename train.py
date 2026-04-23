@@ -1,5 +1,6 @@
 import argparse
 import copy
+import json
 import random
 import time
 from pathlib import Path
@@ -141,7 +142,14 @@ def run_training(
     seed=42,
     num_workers=0,
     use_acca=False,
+    alpha_mode="learned",
+    acca_type="attention",
+    acca_placement="pre_head",
+    acca_n_heads=16,
     alpha_init=-4.6,
+    freeze_backbone_epochs=0,
+    run_name=None,
+    trace_dir="scripts/traces",
 ):
     set_seed(seed)
 
@@ -176,7 +184,12 @@ def run_training(
         patch_len=patch_len,
         stride=stride,
         use_acca=use_acca,
+        alpha_mode=alpha_mode,
+        acca_type=acca_type,
+        acca_placement=acca_placement,
+        acca_n_heads=acca_n_heads,
         alpha_init=alpha_init,
+        freeze_backbone_epochs=freeze_backbone_epochs,
     )
 
     train_loader = DataLoader(
@@ -220,7 +233,20 @@ def run_training(
 
     total_train_start = time.time()
 
+    # Per-epoch trace: captures alpha + losses; written to trace_dir/{run_name}_trace.json at the end.
+    epoch_trace = []
+
     for epoch in range(epochs):
+        # 2-stage training: freeze/unfreeze backbone
+        if configs.freeze_backbone_epochs > 0:
+            freeze = epoch < configs.freeze_backbone_epochs
+            if hasattr(model, 'patch_embedding'):
+                for param in model.patch_embedding.parameters():
+                    param.requires_grad = not freeze
+            if hasattr(model, 'encoder'):
+                for param in model.encoder.parameters():
+                    param.requires_grad = not freeze
+
         current_lr = adjust_learning_rate(optimizer, epoch, lr)
         epoch_start = time.time()
 
@@ -241,14 +267,29 @@ def run_training(
         )
         
         # ACCA logging
+        alpha_raw_mean = None
+        alpha_effective_mean = None
         if configs.use_acca and hasattr(model, 'acca'):
             raw = model.acca._alpha_raw.detach().cpu().numpy().flatten()
             eff = torch.sigmoid(model.acca._alpha_raw).detach().cpu().numpy().flatten()
-            print(f"Epoch {epoch + 1} | ACCA alpha_raw (mean: {raw.mean():.4f}): {raw}")
-            print(f"Epoch {epoch + 1} | ACCA alpha_effective (mean: {eff.mean():.4f}): {eff}")
-            
+            alpha_raw_mean = float(raw.mean())
+            alpha_effective_mean = float(eff.mean())
+            print(f"Epoch {epoch + 1} | ACCA alpha_raw (mean: {alpha_raw_mean:.4f}): {raw}")
+            print(f"Epoch {epoch + 1} | ACCA alpha_effective (mean: {alpha_effective_mean:.4f}): {eff}")
+
             if epoch == 0:
                 print(f"Epoch 1 Quick Check | ACCA alpha_raw.grad is hooked up: {model.acca._alpha_raw.grad is not None}")
+
+        epoch_trace.append({
+            "epoch": epoch + 1,
+            "train_mse": float(train_mse),
+            "val_mse": float(val_mse),
+            "val_mae": float(val_mae),
+            "lr": float(current_lr),
+            "epoch_time_s": float(epoch_time),
+            "alpha_raw": alpha_raw_mean,
+            "alpha_effective": alpha_effective_mean,
+        })
 
         if val_mse < best_val_mse:
             best_val_mse = val_mse
@@ -270,13 +311,27 @@ def run_training(
 
     save_dir = Path(save_dir)
     save_dir.mkdir(parents=True, exist_ok=True)
-    model_save_path = save_dir / f"best_{model_name.lower()}.pt"
+    # Include run_name in the checkpoint filename so parallel ablation runs
+    # don't clobber each other and we can re-load a specific trained ACCA
+    # model later (e.g. to extract attention weights for the report figures).
+    ckpt_slug = run_name if run_name else f"best_{model_name.lower()}"
+    model_save_path = save_dir / f"{ckpt_slug}.pt"
     torch.save(model.state_dict(), model_save_path)
     print(f"Best model saved to: {model_save_path}")
 
     test_start = time.time()
     test_mse, test_mae = evaluate(model, test_loader, configs, device, model_name)
     test_inference_time = time.time() - test_start
+
+    final_alpha_raw = None
+    final_alpha_effective = None
+    if configs.use_acca and hasattr(model, 'acca'):
+        final_alpha_raw = float(
+            model.acca._alpha_raw.detach().cpu().numpy().flatten().mean()
+        )
+        final_alpha_effective = float(
+            torch.sigmoid(model.acca._alpha_raw).detach().cpu().numpy().flatten().mean()
+        )
 
     results = {
         "model": model_name,
@@ -288,6 +343,8 @@ def run_training(
         "test_mae": test_mae,
         "total_training_time": total_train_time,
         "test_inference_time": test_inference_time,
+        "final_alpha_raw": final_alpha_raw,
+        "final_alpha_effective": final_alpha_effective,
     }
 
     print()
@@ -297,6 +354,39 @@ def run_training(
             print(f"{key}: {value:.4f}")
         else:
             print(f"{key}: {value}")
+
+    if run_name:
+        trace_path = Path(trace_dir)
+        trace_path.mkdir(parents=True, exist_ok=True)
+        trace_file = trace_path / f"{run_name}_trace.json"
+        with trace_file.open("w", encoding="utf-8") as f:
+            json.dump(
+                {
+                    "run_name": run_name,
+                    "config": {
+                        "model": model_name,
+                        "dataset": dataset_name,
+                        "seq_len": seq_len,
+                        "pred_len": pred_len,
+                        "d_model": d_model,
+                        "n_heads": n_heads,
+                        "e_layers": e_layers,
+                        "d_ff": d_ff,
+                        "dropout": dropout,
+                        "use_acca": use_acca,
+                        "acca_type": acca_type,
+                        "acca_placement": acca_placement,
+                        "alpha_mode": alpha_mode,
+                        "alpha_init": alpha_init,
+                        "seed": seed,
+                    },
+                    "summary": results,
+                    "per_epoch": epoch_trace,
+                },
+                f,
+                indent=2,
+            )
+        print(f"Trace saved to: {trace_file}")
 
     return results
 
@@ -325,10 +415,18 @@ def parse_args():
     parser.add_argument("--num_workers", type=int, default=0)
     
     # ACCA arguments
-    parser.add_argument("--use_acca", action="store_true",
-                        help="Enable the Adaptive Cross-Channel Attention module.")
-    parser.add_argument("--alpha_init", type=float, default=-4.6,
-                        help="Initial value of the raw alpha gate (sigmoid(-4.6) ~= 0.01).")
+    parser.add_argument("--use_acca", action="store_true")
+    parser.add_argument("--alpha_mode", type=str, default="learned")
+    parser.add_argument("--acca_type", type=str, default="attention", choices=["attention", "linear"])
+    parser.add_argument("--acca_placement", type=str, default="pre_head", choices=["pre_head", "post_head"])
+    parser.add_argument("--acca_n_heads", type=int, default=16)
+    parser.add_argument("--alpha_init", type=float, default=-4.6)
+    parser.add_argument("--freeze_backbone_epochs", type=int, default=0)
+
+    # Run bookkeeping: if set, a per-epoch JSON trace is written to {trace_dir}/{run_name}_trace.json.
+    parser.add_argument("--run_name", type=str, default=None,
+                        help="Identifier for this run; used to name the trace file.")
+    parser.add_argument("--trace_dir", type=str, default="scripts/traces")
 
     return parser.parse_args()
 
@@ -356,5 +454,12 @@ if __name__ == "__main__":
         seed=args.seed,
         num_workers=args.num_workers,
         use_acca=args.use_acca,
+        alpha_mode=args.alpha_mode,
+        acca_type=args.acca_type,
+        acca_placement=args.acca_placement,
+        acca_n_heads=args.acca_n_heads,
         alpha_init=args.alpha_init,
+        freeze_backbone_epochs=args.freeze_backbone_epochs,
+        run_name=args.run_name,
+        trace_dir=args.trace_dir,
     )
